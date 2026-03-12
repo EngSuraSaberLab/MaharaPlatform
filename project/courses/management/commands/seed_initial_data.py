@@ -4,8 +4,7 @@ from django.core.management import BaseCommand, call_command
 from django.db import connection
 
 from blog.models import Category, Post
-from courses.models import Course, Enrollment
-from django.contrib.auth.models import User
+from courses.models import Course
 
 
 class Command(BaseCommand):
@@ -18,11 +17,9 @@ class Command(BaseCommand):
 
         has_existing_data = any(
             [
-                User.objects.exists(),
                 Category.objects.exists(),
                 Post.objects.exists(),
                 Course.objects.exists(),
-                Enrollment.objects.exists(),
             ]
         )
 
@@ -30,7 +27,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("Initial data already exists. Skipping."))
             return
 
-        fixture_path = Path(__file__).resolve().parents[3] / "initial_data.json"
+        fixture_path = Path(__file__).resolve().parents[3] / "content_seed.json"
         self.stdout.write(f"Using fixture: {fixture_path}")
 
         if not fixture_path.exists():
@@ -41,11 +38,9 @@ class Command(BaseCommand):
         call_command("loaddata", str(fixture_path))
 
         counts = {
-            "users": User.objects.count(),
             "categories": Category.objects.count(),
             "posts": Post.objects.count(),
             "courses": Course.objects.count(),
-            "enrollments": Enrollment.objects.count(),
         }
         self.stdout.write(f"Post-seed counts: {counts}")
 
