@@ -25,7 +25,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("Initial data already exists. Skipping."))
             return
 
-        fixture_path = Path(__file__).resolve().parents[4] / "initial_data.json"
+        fixture_path = Path(__file__).resolve().parents[3] / "initial_data.json"
         if not fixture_path.exists():
             self.stdout.write(
                 self.style.WARNING(f"Fixture file not found: {fixture_path}")
