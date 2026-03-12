@@ -40,7 +40,6 @@ def create_checkout_session(request, slug):
                     },
                     'quantity': 1,
                 },
-        ),
             ],
             success_url=request.build_absolute_uri(
                 f"{success_path}?session_id={{CHECKOUT_SESSION_ID}}"
