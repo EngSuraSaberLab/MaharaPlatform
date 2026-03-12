@@ -1,6 +1,7 @@
 import stripe
 from django.conf import settings
 from django.http import Http404, HttpResponse
+from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
@@ -15,33 +16,42 @@ def create_checkout_session(request, slug):
     course = get_object_or_404(Course, slug=slug, is_active=True)
     success_path = reverse("payment_success", kwargs={"slug": course.slug})
 
-    checkout_session = stripe.checkout.Session.create(
-        payment_method_types=['card'],
-        mode='payment',
-        metadata={
-            'course_slug': course.slug,
-            'user_id': request.user.id,
-        },
-        line_items=[
-            {
-                'price_data': {
-                    'currency': 'usd',
-                    'product_data': {
-                        'name': course.title,
-                        'description': course.short_description,
+    if not settings.STRIPE_SECRET_KEY or not settings.STRIPE_PUBLIC_KEY:
+        messages.error(request, "Payment is not configured yet.")
+        return redirect("course_detail", slug=course.slug)
+
+    try:
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            mode='payment',
+            metadata={
+                'course_slug': course.slug,
+                'user_id': request.user.id,
+            },
+            line_items=[
+                {
+                    'price_data': {
+                        'currency': 'usd',
+                        'product_data': {
+                            'name': course.title,
+                            'description': course.short_description,
+                        },
+                        'unit_amount': int(course.price * 100),
                     },
-                    'unit_amount': int(course.price * 100),
+                    'quantity': 1,
                 },
-                'quantity': 1,
-            }
-        ],
-        success_url=request.build_absolute_uri(
-            f"{success_path}?session_id={{CHECKOUT_SESSION_ID}}"
         ),
-        cancel_url=request.build_absolute_uri(
-            f'/courses/{course.slug}/'
-        ),
-    )
+            ],
+            success_url=request.build_absolute_uri(
+                f"{success_path}?session_id={{CHECKOUT_SESSION_ID}}"
+            ),
+            cancel_url=request.build_absolute_uri(
+                f'/courses/{course.slug}/'
+            ),
+        )
+    except stripe.StripeError:
+        messages.error(request, "Unable to start payment right now.")
+        return redirect("course_detail", slug=course.slug)
 
     if not checkout_session.url:
         raise Http404("Stripe checkout URL was not created.")
