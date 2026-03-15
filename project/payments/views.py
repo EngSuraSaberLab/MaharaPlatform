@@ -1,3 +1,4 @@
+import logging
 import stripe
 from decimal import Decimal
 
@@ -12,6 +13,7 @@ from courses.models import Course, Enrollment
 from .models import Payment
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
+logger = logging.getLogger(__name__)
 
 
 def upsert_payment(session, course, user_id):
@@ -160,24 +162,20 @@ def stripe_webhook(request):
     payload = request.body
     sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
 
-    print("=== WEBHOOK CALLED ===")
-    print("Signature header:", sig_header)
-    print("Webhook secret from settings:", settings.STRIPE_WEBHOOK_SECRET)
-
     try:
         event = stripe.Webhook.construct_event(
             payload,
             sig_header,
             settings.STRIPE_WEBHOOK_SECRET
         )
-        print("Webhook verified successfully. Event type:", event["type"])
+        logger.info("Stripe webhook verified for event %s", event["type"])
 
     except ValueError as e:
-        print("Invalid payload error:", str(e))
+        logger.warning("Stripe webhook received invalid payload: %s", e)
         return HttpResponse(status=400)
 
     except Exception as e:
-        print("Signature verification / construct error:", str(e))
+        logger.warning("Stripe webhook signature verification failed: %s", e)
         return HttpResponse(status=400)
 
     try:
@@ -186,9 +184,6 @@ def stripe_webhook(request):
 
             course_slug = session["metadata"].get("course_slug")
             user_id = session["metadata"].get("user_id")
-
-            print("Metadata course_slug:", course_slug)
-            print("Metadata user_id:", user_id)
 
             if course_slug and user_id:
                 course = Course.objects.get(slug=course_slug)
@@ -203,10 +198,14 @@ def stripe_webhook(request):
                 enrollment.is_active = True
                 enrollment.save()
 
-                print("Enrollment activated successfully.")
+                logger.info(
+                    "Enrollment activated from Stripe webhook for course %s and user %s",
+                    course_slug,
+                    user_id,
+                )
 
     except Exception as e:
-        print("Webhook processing error:", str(e))
+        logger.exception("Stripe webhook processing failed: %s", e)
         return HttpResponse(status=400)
 
     return HttpResponse(status=200)
