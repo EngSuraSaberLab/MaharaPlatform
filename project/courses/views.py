@@ -97,7 +97,13 @@ def media_file(request, file_path):
     if file_path.startswith("course_videos/"):
         raise Http404("Direct access to course videos is not allowed")
 
-    file_full_path = Path(settings.MEDIA_ROOT) / file_path
+    media_root = Path(settings.MEDIA_ROOT).resolve()
+    file_full_path = (media_root / file_path).resolve()
+
+    try:
+        file_full_path.relative_to(media_root)
+    except ValueError:
+        raise Http404("Invalid media path")
 
     if not file_full_path.exists() or not file_full_path.is_file():
         raise Http404("Media file not found")
@@ -121,6 +127,12 @@ def course_video(request, slug):
     if not course.video:
         raise Http404("Video not found")
 
-    video_path = Path(settings.MEDIA_ROOT) / course.video.name
+    media_root = Path(settings.MEDIA_ROOT).resolve()
+    video_path = (media_root / course.video.name).resolve()
+
+    try:
+        video_path.relative_to(media_root)
+    except ValueError:
+        raise Http404("Invalid video path")
 
     return FileResponse(open(video_path, "rb"), content_type="video/mp4")
