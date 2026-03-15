@@ -4,6 +4,7 @@ from django.http import FileResponse, Http404
 from django.conf import settings
 from django.urls import reverse
 from pathlib import Path
+from django.db.models import Prefetch
 from .models import Course, Enrollment
 from comments.models import Comment
 from comments.forms import CommentForm
@@ -33,6 +34,7 @@ def course_list(request):
 
 def course_detail(request, slug):
     course = get_object_or_404(Course, slug=slug, is_active=True)
+    replies = Comment.objects.select_related("user").order_by("created_at")
 
     user_enrolled = False
     if request.user.is_authenticated:
@@ -45,6 +47,8 @@ def course_detail(request, slug):
     comments = Comment.objects.filter(
         course=course,
         parent__isnull=True
+    ).select_related("user").prefetch_related(
+        Prefetch("replies", queryset=replies)
     )
 
     comments_count = Comment.objects.filter(course=course).count()

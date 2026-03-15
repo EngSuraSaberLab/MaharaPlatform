@@ -1,6 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
-from django.db.models import Count, Q
+from django.db.models import Count, Prefetch, Q
 from .models import Category, Post
 from comments.models import Comment
 from comments.forms import CommentForm
@@ -29,6 +29,7 @@ def blogPage(request):
 
 def blogDetail(request, slug):
     post = get_object_or_404(Post.objects.select_related("category"), slug=slug, is_published=True)
+    replies = Comment.objects.select_related("user").order_by("created_at")
     categories = Category.objects.annotate(
         published_posts_count=Count("posts", filter=Q(posts__is_published=True))
     ).filter(published_posts_count__gt=0)
@@ -36,6 +37,8 @@ def blogDetail(request, slug):
     comments = Comment.objects.filter(
         post=post,
         parent__isnull=True
+    ).select_related("user").prefetch_related(
+        Prefetch("replies", queryset=replies)
     )
 
     comments_count = Comment.objects.filter(post=post).count()
