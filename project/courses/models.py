@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.validators import FileExtensionValidator
 from django.utils.text import slugify
 from decimal import Decimal
 
@@ -11,7 +12,12 @@ class Course(models.Model):
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     image = models.ImageField(upload_to='courses/', blank=True, null=True)
-    video = models.FileField(upload_to='course_videos/', blank=True, null=True)
+    video = models.FileField(
+        upload_to='course_videos/',
+        blank=True,
+        null=True,
+        validators=[FileExtensionValidator(allowed_extensions=['mp4'])],
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
