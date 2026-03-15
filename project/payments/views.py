@@ -1,4 +1,6 @@
 import stripe
+from decimal import Decimal
+
 from django.conf import settings
 from django.http import Http404, HttpResponse
 from django.contrib import messages
@@ -7,8 +9,41 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
 from courses.models import Course, Enrollment
+from .models import Payment
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
+
+
+def upsert_payment(session, course, user_id):
+    amount_total = session.get("amount_total")
+    if amount_total is None:
+        amount = course.price
+    else:
+        amount = Decimal(amount_total) / Decimal("100")
+
+    payment_status = session.get("payment_status")
+    if payment_status == "paid":
+        status = Payment.Status.PAID
+    elif payment_status == "unpaid":
+        status = Payment.Status.PENDING
+    else:
+        status = Payment.Status.FAILED
+
+    payment_intent = session.get("payment_intent") or ""
+
+    payment, _ = Payment.objects.update_or_create(
+        stripe_session_id=session["id"],
+        defaults={
+            "user_id": user_id,
+            "course": course,
+            "amount": amount,
+            "currency": (session.get("currency") or "usd").lower(),
+            "status": status,
+            "stripe_payment_intent_id": payment_intent,
+            "transaction_id": payment_intent,
+        },
+    )
+    return payment
 
 
 @login_required
@@ -55,6 +90,19 @@ def create_checkout_session(request, slug):
     if not checkout_session.url:
         raise Http404("Stripe checkout URL was not created.")
 
+    Payment.objects.update_or_create(
+        stripe_session_id=checkout_session.id,
+        defaults={
+            "user": request.user,
+            "course": course,
+            "amount": course.price,
+            "currency": "usd",
+            "status": Payment.Status.PENDING,
+            "stripe_payment_intent_id": "",
+            "transaction_id": "",
+        },
+    )
+
     request.session["last_checkout_session_id"] = checkout_session.id
 
     return redirect(checkout_session.url, code=303)
@@ -85,6 +133,8 @@ def payment_success(request, slug):
 
     if course_slug != course.slug or str(user_id) != str(request.user.id):
         raise Http404("Checkout session does not match this user or course.")
+
+    upsert_payment(checkout_session, course, request.user.id)
 
     enrollment, created = Enrollment.objects.get_or_create(
         user=request.user,
@@ -142,6 +192,7 @@ def stripe_webhook(request):
 
             if course_slug and user_id:
                 course = Course.objects.get(slug=course_slug)
+                upsert_payment(session, course, user_id)
 
                 enrollment, created = Enrollment.objects.get_or_create(
                     user_id=user_id,
