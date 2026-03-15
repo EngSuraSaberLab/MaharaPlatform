@@ -1,4 +1,5 @@
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 from django.http import FileResponse, Http404
 from django.conf import settings
@@ -11,7 +12,8 @@ from comments.forms import CommentForm
 
 
 def homePage(request):
-    courses = Course.objects.filter(is_active=True)
+    courses_queryset = Course.objects.filter(is_active=True)
+    courses = Paginator(courses_queryset, 6).get_page(request.GET.get("page"))
 
     my_courses = []
     if request.user.is_authenticated:
@@ -28,7 +30,8 @@ def homePage(request):
 
 
 def course_list(request):
-    courses = Course.objects.filter(is_active=True)
+    courses_queryset = Course.objects.filter(is_active=True)
+    courses = Paginator(courses_queryset, 9).get_page(request.GET.get("page"))
     return render(request, 'courses/list.html', {'courses': courses})
 
 
@@ -44,12 +47,13 @@ def course_detail(request, slug):
             is_active=True
         ).exists()
 
-    comments = Comment.objects.filter(
+    comments_queryset = Comment.objects.filter(
         course=course,
         parent__isnull=True
     ).select_related("user").prefetch_related(
         Prefetch("replies", queryset=replies)
     )
+    comments = Paginator(comments_queryset, 10).get_page(request.GET.get("comments_page"))
 
     comments_count = Comment.objects.filter(course=course).count()
 

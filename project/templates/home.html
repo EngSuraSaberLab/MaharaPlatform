@@ -271,6 +271,36 @@
       {% endfor %}
 
     </div>
+
+    {% if courses.has_other_pages %}
+      <nav class="mt-5" aria-label="{% trans 'Courses pagination' %}">
+        <ul class="pagination justify-content-center">
+          {% if courses.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ courses.previous_page_number }}#courses">{% trans "Previous" %}</a>
+            </li>
+          {% else %}
+            <li class="page-item disabled">
+              <span class="page-link">{% trans "Previous" %}</span>
+            </li>
+          {% endif %}
+
+          <li class="page-item active">
+            <span class="page-link">{{ courses.number }}</span>
+          </li>
+
+          {% if courses.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ courses.next_page_number }}#courses">{% trans "Next" %}</a>
+            </li>
+          {% else %}
+            <li class="page-item disabled">
+              <span class="page-link">{% trans "Next" %}</span>
+            </li>
+          {% endif %}
+        </ul>
+      </nav>
+    {% endif %}
   </div>
 </section>
 

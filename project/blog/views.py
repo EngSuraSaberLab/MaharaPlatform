@@ -1,5 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
+from django.core.paginator import Paginator
 from django.db.models import Count, Prefetch, Q
 from .models import Category, Post
 from comments.models import Comment
@@ -34,12 +35,13 @@ def blogDetail(request, slug):
         published_posts_count=Count("posts", filter=Q(posts__is_published=True))
     ).filter(published_posts_count__gt=0)
 
-    comments = Comment.objects.filter(
+    comments_queryset = Comment.objects.filter(
         post=post,
         parent__isnull=True
     ).select_related("user").prefetch_related(
         Prefetch("replies", queryset=replies)
     )
+    comments = Paginator(comments_queryset, 10).get_page(request.GET.get("comments_page"))
 
     comments_count = Comment.objects.filter(post=post).count()
 
