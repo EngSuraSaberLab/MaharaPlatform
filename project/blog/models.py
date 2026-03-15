@@ -4,7 +4,7 @@ from django.utils.text import slugify
 
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
-    slug = models.SlugField(unique=True, blank=True)
+    slug = models.SlugField(unique=True, blank=True, allow_unicode=True)
 
     class Meta:
         ordering = ['name']
@@ -15,7 +15,7 @@ class Category(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            base_slug = slugify(self.name)
+            base_slug = slugify(self.name, allow_unicode=True)
             slug = base_slug
             counter = 1
             while Category.objects.filter(slug=slug).exclude(pk=self.pk).exists():
@@ -27,7 +27,7 @@ class Category(models.Model):
 
 class Post(models.Model):
     title = models.CharField(max_length=200)
-    slug = models.SlugField(unique=True, blank=True)
+    slug = models.SlugField(unique=True, blank=True, allow_unicode=True)
     category = models.ForeignKey(
         Category,
         on_delete=models.SET_NULL,
@@ -49,7 +49,7 @@ class Post(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            base_slug = slugify(self.title)
+            base_slug = slugify(self.title, allow_unicode=True)
             slug = base_slug
             counter = 1
             while Post.objects.filter(slug=slug).exclude(pk=self.pk).exists():

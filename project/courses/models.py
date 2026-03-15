@@ -7,7 +7,7 @@ from decimal import Decimal
 
 class Course(models.Model):
     title = models.CharField(max_length=200)
-    slug = models.SlugField(unique=True, blank=True)
+    slug = models.SlugField(unique=True, blank=True, allow_unicode=True)
     short_description = models.CharField(max_length=255)
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
@@ -29,7 +29,7 @@ class Course(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            base_slug = slugify(self.title)
+            base_slug = slugify(self.title, allow_unicode=True)
             slug = base_slug
             counter = 1
             while Course.objects.filter(slug=slug).exclude(pk=self.pk).exists():
